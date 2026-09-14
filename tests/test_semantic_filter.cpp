@@ -56,23 +56,33 @@ int main(int argc, char ** argv) {
 
     const llama_vocab * vocab = llama_model_get_vocab(model);
     llama_sampler * sampler = semantic_sampler_create(vocab);
-    semantic_sampler_feed(sampler, "function foo(): null {} function foo");
+    // A duplicate class whose body is about to close: the closing brace is the
+    // point at which the duplicate name becomes visible.
+    semantic_sampler_feed(sampler, "class Foo {} class Foo { x: int; ");
 
-    const llama_token open = token_for(vocab, "(");
+    const llama_token close = token_for(vocab, "}");
     const llama_token extension = token_for(vocab, "X");
-    expect(open != LLAMA_TOKEN_NULL, "tokenize delimiter");
+    const llama_token start = token_for(vocab, "class");
+    expect(close != LLAMA_TOKEN_NULL, "tokenize close brace");
     expect(extension != LLAMA_TOKEN_NULL, "tokenize extension");
-    if (open != LLAMA_TOKEN_NULL) {
-        expect(!std::isfinite(filtered_logit(sampler, open)), "filter duplicate delimiter");
+    expect(start != LLAMA_TOKEN_NULL, "tokenize identifier");
+    if (close != LLAMA_TOKEN_NULL) {
+        expect(!std::isfinite(filtered_logit(sampler, close)), "filter closing a duplicate class");
     }
     if (extension != LLAMA_TOKEN_NULL) {
         expect(std::isfinite(filtered_logit(sampler, extension)), "allow identifier extension");
     }
 
+    // Complete the duplicate; the checker fails and filters everything.
+    semantic_sampler_feed(sampler, "}");
+    if (start != LLAMA_TOKEN_NULL) {
+        expect(!std::isfinite(filtered_logit(sampler, start)), "failed checker filters candidates");
+    }
+
     llama_sampler * clone = llama_sampler_clone(sampler);
     llama_sampler_reset(clone);
-    if (open != LLAMA_TOKEN_NULL) {
-        expect(std::isfinite(filtered_logit(clone, open)), "reset clears declarations");
+    if (start != LLAMA_TOKEN_NULL) {
+        expect(std::isfinite(filtered_logit(clone, start)), "reset clears declarations");
     }
 
     llama_sampler_free(clone);

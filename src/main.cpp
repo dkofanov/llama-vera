@@ -295,8 +295,9 @@ int main(int argc, char ** argv) {
         llama_sampler_chain_add(chain, grammar);
     }
     if (opt.semantic_no_dup) {
+        // parser3 constrains the generated VERA program only; the natural-language
+        // prompt is not VERA source, so it is not fed to the checker.
         semantic = semantic_sampler_create(vocab);
-        semantic_sampler_feed(semantic, opt.prompt);
         llama_sampler_chain_add(chain, semantic);
     }
 

@@ -10,11 +10,15 @@ if(DEFINED LLAMA_LIB_DIR)
     set(CMAKE_BUILD_RPATH "${LLAMA_LIB_DIR}")
 endif()
 
+set(PARSER3_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../llama-cli/src/parser3/include"
+    CACHE PATH "parser3 include directory")
+
 add_library(vera-semantic
     src/semantic_sampler.cpp
     src/vera_analyzer.cpp
 )
 target_include_directories(vera-semantic PUBLIC src)
+target_include_directories(vera-semantic PRIVATE ${PARSER3_INCLUDE_DIR})
 target_link_libraries(vera-semantic PUBLIC llama)
 
 add_executable(llama-vera src/main.cpp)
@@ -29,7 +33,7 @@ if(BUILD_TESTING)
         tests/test_vera_analyzer.cpp
         src/vera_analyzer.cpp
     )
-    target_include_directories(vera-analyzer-test PRIVATE src)
+    target_include_directories(vera-analyzer-test PRIVATE src ${PARSER3_INCLUDE_DIR})
     add_test(NAME vera-analyzer COMMAND vera-analyzer-test)
 
     set(LLAMA_VERA_TEST_MODEL "" CACHE FILEPATH "GGUF model used by semantic sampler integration tests")
