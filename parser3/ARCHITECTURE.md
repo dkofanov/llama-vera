@@ -35,7 +35,15 @@ checkpoints — a discarded branch has no semantic effect.
 ## Reference performance
 
 Release (`-O2 -DNDEBUG`), i7-13700, g++ 11.4, Ubuntu 22.04; machine-specific.
-`parser3-bench 20000 1234` on its synthetic grammar (64 units, 704 bytes):
+`parser3-bench 20000 1234` on its synthetic grammar (64 units, 704 bytes).
+
+The workload is a document built from a compile-time-fixed grammar:
+`unit ::= ("let " [a-z]{3} | "level " [0-9]{3}) ";" '\n'`, with the root a
+literal sequence of `PARSER3_BENCH_UNITS` units (64 here). Every unit uses the
+`level` alternative, so the choice tries `let` first and backtracks at the third
+byte on each unit. The whole document is fed once per iteration in three
+chunkings: random 1–5-byte pieces (token-sized), one byte per `Feed`, and four
+bytes per `Feed`.
 
 | chunking | feed ns/B | feed MB/s | total ns/B |
 |---|---|---|---|

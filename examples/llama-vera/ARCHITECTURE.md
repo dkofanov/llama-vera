@@ -68,17 +68,30 @@ itself prints only the generated text). Each run is truncated at the `-n 40` cap
 rather than ending on EOG: an unsatisfiable request gives the model no accepting
 place to stop, so the result is a broken, unclosed prefix.
 
+parser3 is ~1.2–1.9x faster than GBNF. The class semantics adds ~1.1–1.7x in the
+sweep (~3.3x on the accepted-path feed, where no vocab walk amortizes it), so
+parser3+semantics vs GBNF is ~0.6–1.4x, request-dependent. All dwarf the
+~5 ms/token decode: the cost is the ~152k-candidate sweep, not matching speed.
+
 ## Benchmarks
 
 Release (`-O2 -DNDEBUG`), i7-13700, g++ 11.4, Ubuntu 22.04; machine-specific.
 
-`llama-vera-full-bench 300 40 64` — full grammar, 43280 bytes, 64-byte chunks:
+Both benchmarks parse a generated VERA program of `units` function+class pairs:
+`function fnN(a: int, b: number): int { let x: int = a + b * 2; if (x > 0) { return x; } else { return 0; } }`
+followed by `class CN { f: int; g: string; }`, fed in fixed `chunk`-byte pieces.
+
+`llama-vera-full-bench 300 40 64` — 300 units, 43280 bytes, run 40 times, syntax
+grammar only:
 
 ```
 134.06 ns/byte   7.5 MB/s
 ```
 
-`llama-vera-fork-bench 50 10 64` — 50 units, 7130 bytes, 64 bytes/ptoken:
+`llama-vera-fork-bench 50 10 64` — 50 units, 7130 bytes. At each 64-byte piece it
+forks the current context `forks` times, feeds the piece into every copy, commits
+the first accepted, and discards the rest (the sampler's per-candidate trial);
+`forks=1` is the no-fork baseline:
 
 | forks | ns/byte | MB/s | overhead |
 |---|---|---|---|
@@ -86,9 +99,5 @@ Release (`-O2 -DNDEBUG`), i7-13700, g++ 11.4, Ubuntu 22.04; machine-specific.
 | 2 | 291.9 | 3.4 | 2.14x |
 | 3 | 450.7 | 2.2 | 3.30x |
 
-fork copy of a half-parsed context: 0.08 µs/fork.
-
-parser3 is ~1.2–1.9x faster than GBNF. The class semantics adds ~1.1–1.7x in the
-sweep (~3.3x on the accepted-path feed, where no vocab walk amortizes it), so
-parser3+semantics vs GBNF is ~0.6–1.4x, request-dependent. All dwarf the
-~5 ms/token decode: the cost is the ~152k-candidate sweep, not matching speed.
+The fork-copy line times `Fork()` alone at a half-parsed state (0.08 µs/fork),
+isolating the copy from parsing.
