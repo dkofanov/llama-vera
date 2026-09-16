@@ -5,7 +5,7 @@
 // to a module name, are allowed. Function/parameter/local duplicates are not
 // part of the class/module constraints and are not diagnosed.
 
-#include "vera_analyzer.h"
+#include "parser3_vera.h"
 
 #include <cstdio>
 #include <string>
@@ -16,7 +16,7 @@ static int failures = 0;
 
 static void expect(const char *name, const std::string &source,
                    const std::vector<std::pair<std::string, std::string>> &expected) {
-    const std::vector<diagnostic> got = vera_analyze(source);
+    const std::vector<diagnostic> got = vera_diagnostics(source);
     bool ok = got.size() == expected.size();
     for (size_t i = 0; ok && i < expected.size(); ++i) {
         ok = got[i].name == expected[i].first && got[i].scope == expected[i].second;
@@ -27,9 +27,9 @@ static void expect(const char *name, const std::string &source,
     }
 }
 
-// grammar_mode::syntax never records diagnostics; it only accepts or rejects.
+// vera_mode::syntax never records diagnostics; it only accepts or rejects.
 static void expect_syntax(const char *name, const std::string &source, bool accepted) {
-    vera_checker checker(grammar_mode::syntax);
+    parser3_vera checker(vera_mode::syntax);
     checker.feed(source);
     checker.finalize();
     if (checker.failed() == accepted) {
@@ -38,7 +38,7 @@ static void expect_syntax(const char *name, const std::string &source, bool acce
     }
 }
 
-static void expect_probe(const char *name, vera_checker &checker, const std::string &piece, bool finalize,
+static void expect_probe(const char *name, parser3_vera &checker, const std::string &piece, bool finalize,
                          bool expected) {
     const bool got = checker.would_introduce_diagnostic(piece, finalize);
     if (got != expected) {
@@ -70,7 +70,7 @@ int main() {
     expect_syntax("syntax: missing type is rejected", "class A { x: ; }", false);
     expect_syntax("syntax: unclosed class is rejected", "class A { x: int;", false);
 
-    vera_checker checker;
+    parser3_vera checker;
     checker.feed("class Foo {} class Foo");
     expect_probe("pending duplicate is not rejected", checker, "", false, false);
     expect_probe("identifier extension remains legal", checker, "X", false, false);

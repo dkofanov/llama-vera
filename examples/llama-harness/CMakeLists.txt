@@ -7,36 +7,34 @@ if(DEFINED LLAMA_LIB_DIR)
     set(CMAKE_BUILD_RPATH "${LLAMA_LIB_DIR}")
 endif()
 
-add_library(vera-semantic
-    src/parser3_sampler.cpp
-    src/vera_analyzer.cpp
-)
-target_include_directories(vera-semantic PUBLIC src)
-target_link_libraries(vera-semantic PUBLIC llama parser3)
+# Core: a parser3 instance for VERA, with no llama.cpp dependency.
+add_library(parser3-vera src/parser3_vera.cpp)
+target_include_directories(parser3-vera PUBLIC src)
+target_link_libraries(parser3-vera PUBLIC parser3)
+
+# Adapter: the llama.cpp sampler that wraps the core.
+add_library(llama-vera-sampler src/llama_vera_sampler.cpp)
+target_link_libraries(llama-vera-sampler PUBLIC llama parser3-vera)
 
 add_executable(llama-vera src/main.cpp)
-target_link_libraries(llama-vera PRIVATE vera-semantic)
+target_link_libraries(llama-vera PRIVATE llama-vera-sampler)
 if(UNIX AND NOT APPLE AND DEFINED LLAMA_LIB_DIR)
     target_link_options(llama-vera PRIVATE "-Wl,--disable-new-dtags")
 endif()
 
 include(CTest)
 if(BUILD_TESTING)
-    add_executable(vera-analyzer-test
-        tests/test_vera_analyzer.cpp
-        src/vera_analyzer.cpp
-    )
-    target_include_directories(vera-analyzer-test PRIVATE src)
-    target_link_libraries(vera-analyzer-test PRIVATE parser3)
-    add_test(NAME vera-analyzer COMMAND vera-analyzer-test)
+    add_executable(parser3-vera-test tests/test_parser3_vera.cpp)
+    target_link_libraries(parser3-vera-test PRIVATE parser3-vera)
+    add_test(NAME parser3-vera COMMAND parser3-vera-test)
 
-    set(LLAMA_VERA_TEST_MODEL "" CACHE FILEPATH "GGUF model used by semantic sampler integration tests")
+    set(LLAMA_VERA_TEST_MODEL "" CACHE FILEPATH "GGUF model used by the sampler integration test")
     if(LLAMA_VERA_TEST_MODEL)
-        add_executable(semantic-filter-test tests/test_semantic_filter.cpp)
-        target_link_libraries(semantic-filter-test PRIVATE vera-semantic)
+        add_executable(llama-vera-sampler-test tests/test_llama_vera_sampler.cpp)
+        target_link_libraries(llama-vera-sampler-test PRIVATE llama-vera-sampler)
         if(UNIX AND NOT APPLE AND DEFINED LLAMA_LIB_DIR)
-            target_link_options(semantic-filter-test PRIVATE "-Wl,--disable-new-dtags")
+            target_link_options(llama-vera-sampler-test PRIVATE "-Wl,--disable-new-dtags")
         endif()
-        add_test(NAME semantic-filter COMMAND semantic-filter-test ${LLAMA_VERA_TEST_MODEL})
+        add_test(NAME llama-vera-sampler COMMAND llama-vera-sampler-test ${LLAMA_VERA_TEST_MODEL})
     endif()
 endif()

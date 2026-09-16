@@ -1,9 +1,9 @@
-#include "vera_analyzer.h"
+#include "parser3_vera.h"
 
-// parser3-backed analyzer.  In syntax mode the parse is the generated full
+// parser3-backed VERA checker.  In syntax mode the parse is the generated full
 // grammar; in semantics mode it is the full_sem grammar with its ClassSemantics
 // bindings (duplicate class/field names and type references that must resolve to
-// a previously declared class).  The public API is unchanged.
+// a previously declared class).
 
 #include "parser3/core/context.h"
 #include "parser3/core/context_view.h"
@@ -22,17 +22,17 @@ namespace {
 constexpr std::size_t kStackSlots = 1 << 16;
 }
 
-struct vera_checker::impl {
-    grammar_mode mode;
+struct parser3_vera::impl {
+    vera_mode mode;
     Context ctx;
     std::vector<diagnostic> diags;
     std::size_t piece_index = 0;
     bool failed = false;
 
-    explicit impl(grammar_mode m) : mode(m), ctx(make_context(m)) {}
+    explicit impl(vera_mode m) : mode(m), ctx(make_context(m)) {}
 
-    static Context make_context(grammar_mode m) {
-        if (m == grammar_mode::syntax) {
+    static Context make_context(vera_mode m) {
+        if (m == vera_mode::syntax) {
             return Context(kStackSlots, std::in_place_type<full::Root>);
         }
         return Context(kStackSlots, std::in_place_type<full_sem::Root>, std::make_unique<ClassSemantics>());
@@ -45,7 +45,7 @@ struct vera_checker::impl {
     // Mark the current input as rejected.  Only the semantic mode records a
     // diagnostic; syntax mode has nothing to report.
     void record(std::size_t index) {
-        if (mode == grammar_mode::semantics) {
+        if (mode == vera_mode::semantics) {
             const ClassSemantics *state = ctx.stack.SemanticsAs<ClassSemantics>();
             diags.push_back(
                 {index, state ? state->violated_name() : std::string{}, state ? state->violated_scope() : std::string{}});
@@ -79,30 +79,30 @@ struct vera_checker::impl {
     }
 };
 
-vera_checker::vera_checker() : vera_checker(grammar_mode::semantics) {}
+parser3_vera::parser3_vera() : parser3_vera(vera_mode::semantics) {}
 
-vera_checker::vera_checker(grammar_mode mode) : p_(new impl(mode)) {}
+parser3_vera::parser3_vera(vera_mode mode) : p_(new impl(mode)) {}
 
-vera_checker::~vera_checker() = default;
+parser3_vera::~parser3_vera() = default;
 
-vera_checker::vera_checker(const vera_checker &other) : p_(new impl(*other.p_)) {}
+parser3_vera::parser3_vera(const parser3_vera &other) : p_(new impl(*other.p_)) {}
 
-vera_checker &vera_checker::operator=(const vera_checker &other) {
+parser3_vera &parser3_vera::operator=(const parser3_vera &other) {
     if (this != &other) {
         p_.reset(new impl(*other.p_));
     }
     return *this;
 }
 
-void vera_checker::feed(const std::string &piece) {
+void parser3_vera::feed(const std::string &piece) {
     p_->feed(piece);
 }
 
-void vera_checker::finalize() {
+void parser3_vera::finalize() {
     p_->finalize();
 }
 
-bool vera_checker::would_introduce_diagnostic(const std::string &piece, bool finalize_candidate) const {
+bool parser3_vera::would_introduce_diagnostic(const std::string &piece, bool finalize_candidate) const {
     if (p_->failed) {
         return true;
     }
@@ -127,28 +127,28 @@ bool vera_checker::would_introduce_diagnostic(const std::string &piece, bool fin
     return false;
 }
 
-const std::vector<diagnostic> &vera_checker::diagnostics() const {
+const std::vector<diagnostic> &parser3_vera::diagnostics() const {
     return p_->diags;
 }
 
-bool vera_checker::failed() const {
+bool parser3_vera::failed() const {
     return p_->failed;
 }
 
-grammar_mode vera_checker::mode() const {
+vera_mode parser3_vera::mode() const {
     return p_->mode;
 }
 
-vera_checker vera_checker::clone() const {
-    return vera_checker(*this);
+parser3_vera parser3_vera::clone() const {
+    return parser3_vera(*this);
 }
 
-void vera_checker::reset() {
+void parser3_vera::reset() {
     p_.reset(new impl(p_->mode));
 }
 
-std::vector<diagnostic> vera_analyze(const std::string &text) {
-    vera_checker checker;
+std::vector<diagnostic> vera_diagnostics(const std::string &text) {
+    parser3_vera checker;
     checker.feed(text);
     checker.finalize();
     return checker.diagnostics();

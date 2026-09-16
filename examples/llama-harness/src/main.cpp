@@ -1,4 +1,4 @@
-#include "parser3_sampler.h"
+#include "llama_vera_sampler.h"
 #include "vera_full_gbnf.h"
 
 #include "llama.h"
@@ -282,7 +282,7 @@ int main(int argc, char ** argv) {
     }
 
     llama_sampler * chain = llama_sampler_chain_init(llama_sampler_chain_default_params());
-    llama_sampler * parser3 = nullptr;
+    llama_sampler * vera_sampler = nullptr;
 
     // parser3 (or the built-in GBNF) constrains the generated VERA program only;
     // the natural-language prompt is not VERA source, so it is not fed in.
@@ -298,10 +298,10 @@ int main(int argc, char ** argv) {
         }
         llama_sampler_chain_add(chain, grammar);
     } else if (opt.mode == constraint::parser3_semantics || opt.mode == constraint::parser3_syntax) {
-        const grammar_mode mode =
-            opt.mode == constraint::parser3_semantics ? grammar_mode::semantics : grammar_mode::syntax;
-        parser3 = parser3_sampler_create(vocab, mode);
-        llama_sampler_chain_add(chain, parser3);
+        const vera_mode mode =
+            opt.mode == constraint::parser3_semantics ? vera_mode::semantics : vera_mode::syntax;
+        vera_sampler = llama_vera_sampler_create(vocab, mode);
+        llama_sampler_chain_add(chain, vera_sampler);
     }
 
     llama_sampler_chain_add(chain, llama_sampler_init_penalties(
@@ -330,7 +330,7 @@ int main(int argc, char ** argv) {
         }
 
         llama_token token = LLAMA_TOKEN_NULL;
-        if (parser3) {
+        if (vera_sampler) {
             const float * logits = llama_get_logits_ith(ctx, -1);
             const int32_t n_vocab = llama_vocab_n_tokens(vocab);
             std::vector<llama_token_data> candidates;
@@ -340,7 +340,7 @@ int main(int argc, char ** argv) {
             }
             llama_token_data_array candidate_array = {candidates.data(), candidates.size(), -1, false};
             llama_sampler_apply(chain, &candidate_array);
-            if (!parser3_sampler_has_candidates(parser3)) {
+            if (!llama_vera_sampler_has_candidates(vera_sampler)) {
                 std::fprintf(stderr, "error: semantic constraints rejected every candidate\n");
                 result = 2;
                 break;
