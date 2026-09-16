@@ -27,7 +27,8 @@ Then in a source file:
 ```
 
 See `parser3/ARCHITECTURE.md` for the engine, the grammar DSL, and the semantic
-hooks, and `parser3/grammars` for the grammar sources.
+hooks. The VERA `full` / `full_sem` grammars live with their consumer in
+`examples/llama-harness/grammars`.
 
 Build and test the library by itself:
 

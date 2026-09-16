@@ -1,6 +1,6 @@
 #include "parser3/core/context.h"
 #include "parser3/core/context_view.h"
-#include "parser3-generated/full_grammar.h"
+#include "parser3-generated/context_grammar.h"
 
 #include <cstddef>
 #include <cstdio>
@@ -8,7 +8,7 @@
 #include <utility>
 
 using namespace vera::parser3;
-using vera::parser3::full::Root;
+using vera::parser3::context::Root;
 
 static int failures = 0;
 

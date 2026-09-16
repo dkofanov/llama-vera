@@ -1,0 +1,12 @@
+# Minimal parser3 grammar for the Context tests: a no-argument function
+# declaration with a builtin return type and an empty body.  Its only purpose is
+# to give the fork/commit tests a small, realistic parse.
+
+alias ws    = [ \t\r\n]*
+alias start = [a-zA-Z_]
+alias cont  = [a-zA-Z0-9_]
+
+alias name  = start cont*
+alias type  = "int" | "number" | "string" | "boolean"
+
+alias root  = "function" ws name ws "(" ws ")" ws ":" ws type ws "{" ws "}" ws EOF

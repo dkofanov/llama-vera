@@ -21,7 +21,10 @@ in file order; recursion is spelled out as `struct` + `ref(...)`. Grammar
 headers are build artifacts: the build generates them from the `.grammar`
 sources under the `parser3-generated/` include prefix, and a grammar may
 `%include` hand-written bindings that are inlined into its header. Nothing
-generated is committed or installed.
+generated is committed or installed. The grammars the library ships are its own
+test fixtures (`tests/context.grammar`, `tests/signal.grammar`); application
+grammars such as the VERA `full` / `full_sem` pair live with their consumer, in
+`examples/llama-harness/grammars`.
 
 **Semantics mechanism.** Semantics are an extension of the same description, not
 a second pass. A `@`-marked element is an ordinary grammar element:

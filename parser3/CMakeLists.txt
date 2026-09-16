@@ -7,9 +7,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 
-# Grammar headers are build artifacts: they are generated from grammars/*.grammar
-# into the build tree under the parser3-generated/ include prefix and are never
-# installed.  The hand-written core headers below are the library.
+# Grammar headers are build artifacts: they are generated from the .grammar
+# sources into the build tree under the parser3-generated/ include prefix and are
+# never installed.  The hand-written core headers below are the library.
 set(PARSER3_GENERATED_INCLUDE "${CMAKE_CURRENT_BINARY_DIR}/include")
 set(PARSER3_GENERATED_DIR "${PARSER3_GENERATED_INCLUDE}/parser3-generated")
 
@@ -66,11 +66,9 @@ function(parser3_generate_grammar source output namespace)
 endfunction()
 
 set(PARSER3_GENERATED_OUTPUTS "")
-if(PARSER3_BUILD_TESTS OR PARSER3_BUILD_BENCHMARKS)
+if(PARSER3_BUILD_TESTS)
     find_package(Python3 COMPONENTS Interpreter REQUIRED)
-    parser3_generate_grammar(grammars/full.grammar full_grammar.h vera::parser3::full)
-    parser3_generate_grammar(grammars/full_sem.grammar full_sem_grammar.h vera::parser3::full_sem
-        grammars/full_semantics.h)
+    parser3_generate_grammar(tests/context.grammar context_grammar.h vera::parser3::context)
     parser3_generate_grammar(tests/signal.grammar signal_grammar.h vera::parser3::signal_demo)
 endif()
 add_custom_target(parser3-generated DEPENDS ${PARSER3_GENERATED_OUTPUTS})
