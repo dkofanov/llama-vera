@@ -1,4 +1,4 @@
-#include "semantic_sampler.h"
+#include "parser3_sampler.h"
 
 #include "llama.h"
 
@@ -55,10 +55,10 @@ int main(int argc, char ** argv) {
     }
 
     const llama_vocab * vocab = llama_model_get_vocab(model);
-    llama_sampler * sampler = semantic_sampler_create(vocab);
+    llama_sampler * sampler = parser3_sampler_create(vocab, grammar_mode::semantics);
     // A duplicate class whose body is about to close: the closing brace is the
     // point at which the duplicate name becomes visible.
-    semantic_sampler_feed(sampler, "class Foo {} class Foo { x: int; ");
+    parser3_sampler_feed(sampler, "class Foo {} class Foo { x: int; ");
 
     const llama_token close = token_for(vocab, "}");
     const llama_token extension = token_for(vocab, "X");
@@ -74,7 +74,7 @@ int main(int argc, char ** argv) {
     }
 
     // Complete the duplicate; the checker fails and filters everything.
-    semantic_sampler_feed(sampler, "}");
+    parser3_sampler_feed(sampler, "}");
     if (start != LLAMA_TOKEN_NULL) {
         expect(!std::isfinite(filtered_logit(sampler, start)), "failed checker filters candidates");
     }

@@ -1,6 +1,6 @@
 #pragma once
 
-// Generated from grammars/signal_demo.grammar by tools/grammar_gen.py. Do not edit.
+// Generated from tests/signal.grammar by tools/grammar_gen.py. Do not edit.
 
 #include "parser3/core/grammar_element.h"
 #include "parser3/core/grammar_stack.h"

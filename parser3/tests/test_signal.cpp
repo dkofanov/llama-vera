@@ -5,7 +5,7 @@
 
 #include "parser3/core/context.h"
 #include "parser3/core/context_view.h"
-#include "parser3/examples/signal_grammar.h"
+#include "signal_grammar.h"
 
 #include <cstddef>
 #include <cstdio>

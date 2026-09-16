@@ -1,4 +1,5 @@
-#include "semantic_sampler.h"
+#include "parser3_sampler.h"
+#include "vera_full_gbnf.h"
 
 #include "llama.h"
 
@@ -14,12 +15,16 @@
 #include <string>
 #include <vector>
 
+// How generation is constrained.  The default is parser3 with the class
+// semantics; the other modes are the parser3 grammar without semantics, the
+// built-in llama.cpp GBNF grammar, and no constraint at all.
+enum class constraint { parser3_semantics, parser3_syntax, gbnf, none };
+
 struct options {
     std::string model;
     std::string prompt;
     std::string prompt_file;
-    std::string grammar;
-    std::string grammar_file;
+    constraint mode = constraint::parser3_semantics;
     int32_t n_ctx = 0;
     int32_t n_predict = -1;
     int32_t n_gpu_layers = 0;
@@ -31,7 +36,6 @@ struct options {
     float temp = 0.8f;
     float repeat_penalty = 1.0f;
     uint32_t seed = LLAMA_DEFAULT_SEED;
-    bool semantic_no_dup = false;
     bool verbose = false;
 };
 
@@ -51,9 +55,9 @@ static void print_usage(const char * program) {
     std::printf("      --min-p F                min-p (default: 0.05)\n");
     std::printf("      --repeat-last-n N        repetition window (default: 64)\n");
     std::printf("      --repeat-penalty F       repetition penalty (default: 1.0)\n");
-    std::printf("      --grammar GBNF           GBNF grammar text\n");
-    std::printf("      --grammar-file FILE      read GBNF grammar from FILE\n");
-    std::printf("      --semantic-no-dup        forbid duplicate VERA declarations\n");
+    std::printf("      --no-sem                 parser3 grammar only (no class semantics)\n");
+    std::printf("      --gbnf                   constrain with llama.cpp GBNF instead of parser3\n");
+    std::printf("      --no-grammar             do not constrain generation\n");
     std::printf("  -v, --verbose                show llama.cpp logs\n");
     std::printf("  -h, --help                   show this help\n");
 }
@@ -80,7 +84,18 @@ static bool parse_float(const char * text, float & value) {
     return true;
 }
 
+static bool set_mode(options & opt, bool & mode_set, constraint mode, const char * flag) {
+    if (mode_set) {
+        std::fprintf(stderr, "error: %s conflicts with the selected constraint mode\n", flag);
+        return false;
+    }
+    opt.mode = mode;
+    mode_set = true;
+    return true;
+}
+
 static bool parse_args(int argc, char ** argv, options & opt) {
+    bool mode_set = false;
     for (int i = 1; i < argc; ++i) {
         const std::string arg = argv[i];
         auto value = [&](const std::string & flag) -> const char * {
@@ -141,16 +156,12 @@ static bool parse_args(int argc, char ** argv, options & opt) {
         } else if (arg == "--repeat-penalty") {
             const char * v = value(arg);
             if (!v || !parse_float(v, opt.repeat_penalty) || opt.repeat_penalty <= 0.0f) return false;
-        } else if (arg == "--grammar") {
-            const char * v = value(arg);
-            if (!v) return false;
-            opt.grammar = v;
-        } else if (arg == "--grammar-file") {
-            const char * v = value(arg);
-            if (!v) return false;
-            opt.grammar_file = v;
-        } else if (arg == "--semantic-no-dup") {
-            opt.semantic_no_dup = true;
+        } else if (arg == "--no-sem") {
+            if (!set_mode(opt, mode_set, constraint::parser3_syntax, arg.c_str())) return false;
+        } else if (arg == "--gbnf") {
+            if (!set_mode(opt, mode_set, constraint::gbnf, arg.c_str())) return false;
+        } else if (arg == "--no-grammar") {
+            if (!set_mode(opt, mode_set, constraint::none, arg.c_str())) return false;
         } else if (arg == "-v" || arg == "--verbose") {
             opt.verbose = true;
         } else {
@@ -165,10 +176,6 @@ static bool parse_args(int argc, char ** argv, options & opt) {
     }
     if (!opt.prompt.empty() && !opt.prompt_file.empty()) {
         std::fprintf(stderr, "error: --prompt and --file are mutually exclusive\n");
-        return false;
-    }
-    if (!opt.grammar.empty() && !opt.grammar_file.empty()) {
-        std::fprintf(stderr, "error: --grammar and --grammar-file are mutually exclusive\n");
         return false;
     }
     return true;
@@ -222,11 +229,6 @@ int main(int argc, char ** argv) {
     if (opt.prompt.empty() && opt.prompt_file.empty()) {
         opt.prompt.assign(std::istreambuf_iterator<char>(std::cin), std::istreambuf_iterator<char>());
     }
-    if (!opt.grammar_file.empty() && !read_file(opt.grammar_file, opt.grammar)) {
-        std::fprintf(stderr, "error: failed to read grammar file %s\n", opt.grammar_file.c_str());
-        return 1;
-    }
-
     if (!opt.verbose) {
         llama_log_set([](ggml_log_level level, const char * text, void *) {
             if (level == GGML_LOG_LEVEL_ERROR) {
@@ -280,12 +282,14 @@ int main(int argc, char ** argv) {
     }
 
     llama_sampler * chain = llama_sampler_chain_init(llama_sampler_chain_default_params());
-    llama_sampler * semantic = nullptr;
+    llama_sampler * parser3 = nullptr;
 
-    if (!opt.grammar.empty()) {
-        llama_sampler * grammar = llama_sampler_init_grammar(vocab, opt.grammar.c_str(), "root");
+    // parser3 (or the built-in GBNF) constrains the generated VERA program only;
+    // the natural-language prompt is not VERA source, so it is not fed in.
+    if (opt.mode == constraint::gbnf) {
+        llama_sampler * grammar = llama_sampler_init_grammar(vocab, kFullGbnf, "root");
         if (!grammar) {
-            std::fprintf(stderr, "error: failed to parse grammar\n");
+            std::fprintf(stderr, "error: failed to parse the built-in grammar\n");
             llama_sampler_free(chain);
             llama_free(ctx);
             llama_model_free(model);
@@ -293,12 +297,11 @@ int main(int argc, char ** argv) {
             return 1;
         }
         llama_sampler_chain_add(chain, grammar);
-    }
-    if (opt.semantic_no_dup) {
-        // parser3 constrains the generated VERA program only; the natural-language
-        // prompt is not VERA source, so it is not fed to the checker.
-        semantic = semantic_sampler_create(vocab);
-        llama_sampler_chain_add(chain, semantic);
+    } else if (opt.mode == constraint::parser3_semantics || opt.mode == constraint::parser3_syntax) {
+        const grammar_mode mode =
+            opt.mode == constraint::parser3_semantics ? grammar_mode::semantics : grammar_mode::syntax;
+        parser3 = parser3_sampler_create(vocab, mode);
+        llama_sampler_chain_add(chain, parser3);
     }
 
     llama_sampler_chain_add(chain, llama_sampler_init_penalties(
@@ -327,7 +330,7 @@ int main(int argc, char ** argv) {
         }
 
         llama_token token = LLAMA_TOKEN_NULL;
-        if (semantic) {
+        if (parser3) {
             const float * logits = llama_get_logits_ith(ctx, -1);
             const int32_t n_vocab = llama_vocab_n_tokens(vocab);
             std::vector<llama_token_data> candidates;
@@ -337,7 +340,7 @@ int main(int argc, char ** argv) {
             }
             llama_token_data_array candidate_array = {candidates.data(), candidates.size(), -1, false};
             llama_sampler_apply(chain, &candidate_array);
-            if (!semantic_sampler_has_candidates(semantic)) {
+            if (!parser3_sampler_has_candidates(parser3)) {
                 std::fprintf(stderr, "error: semantic constraints rejected every candidate\n");
                 result = 2;
                 break;

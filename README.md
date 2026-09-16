@@ -66,17 +66,22 @@ cmake -S . -B build -DCMAKE_PREFIX_PATH=../llama-cli/third_party/llama
 Usage:
 
 ```sh
-./build/examples/llama-harness/llama-vera \
-  -m model.gguf \
-  -p 'function foo(): null {} function ' \
-  --semantic-no-dup \
-  -n 64
+./build/examples/llama-harness/llama-vera -m model.gguf -p 'class Point { x: int; } class ' -n 64
 ```
 
-`-f FILE` reads one complete prompt. With neither `-p` nor `-f`, the prompt is read
-from stdin. Use `--grammar` or `--grammar-file` for optional GBNF constraints.
-Duplicate checking includes both prompt and generated text when
-`--semantic-no-dup` is enabled.
+Generation is constrained by default with the parser3 `full_sem` grammar plus its
+class semantics. The constraint mode is selectable:
+
+| mode | flag | engine |
+|---|---|---|
+| default | *(none)* | parser3 `full_sem` + class semantics |
+| parser3 syntax | `--no-sem` | parser3 full grammar, no semantics |
+| built-in GBNF | `--gbnf` | llama.cpp GBNF (the bundled full grammar) |
+| unconstrained | `--no-grammar` | none |
+
+`-f FILE` reads one complete prompt. With neither `-p` nor `-f`, the prompt is
+read from stdin. The constraint applies to the generated VERA program; the
+natural-language prompt is not VERA source, so it is never fed to the parser.
 
 ## License
 

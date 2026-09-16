@@ -16,6 +16,7 @@ add_test(NAME context COMMAND parser3-test-context)
 
 add_executable(parser3-test-signal test_signal.cpp)
 target_link_libraries(parser3-test-signal PRIVATE parser3)
+target_include_directories(parser3-test-signal PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 add_test(NAME signal COMMAND parser3-test-signal)
 
 add_executable(parser3-test-class test_class.cpp)

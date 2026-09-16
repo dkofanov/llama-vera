@@ -10,9 +10,16 @@ struct diagnostic {
     std::string scope;       // module / function / lambda / block / class
 };
 
+// Which parser3 grammar the checker runs:
+//   syntax    - the full VERA grammar only
+//   semantics - the full grammar plus the class/module constraints (duplicate
+//               class/field names and type references that must resolve)
+enum class grammar_mode { syntax, semantics };
+
 class vera_checker {
 public:
     vera_checker();
+    explicit vera_checker(grammar_mode mode);
     ~vera_checker();
     vera_checker(const vera_checker & other);
     vera_checker & operator=(const vera_checker & other);
@@ -21,6 +28,8 @@ public:
     void finalize();
     bool would_introduce_diagnostic(const std::string & piece, bool finalize) const;
     const std::vector<diagnostic> & diagnostics() const;
+    bool failed() const;
+    grammar_mode mode() const;
     vera_checker clone() const;
     void reset();
 

@@ -27,6 +27,17 @@ static void expect(const char *name, const std::string &source,
     }
 }
 
+// grammar_mode::syntax never records diagnostics; it only accepts or rejects.
+static void expect_syntax(const char *name, const std::string &source, bool accepted) {
+    vera_checker checker(grammar_mode::syntax);
+    checker.feed(source);
+    checker.finalize();
+    if (checker.failed() == accepted) {
+        ++failures;
+        std::printf("FAIL  %s\n", name);
+    }
+}
+
 static void expect_probe(const char *name, vera_checker &checker, const std::string &piece, bool finalize,
                          bool expected) {
     const bool got = checker.would_introduce_diagnostic(piece, finalize);
@@ -49,6 +60,15 @@ int main() {
     // prefix at the point it can no longer become a declared name.
     expect("self type reference", "class Node { next: Node; }", {expected{"N", "class"}});
     expect("type chain", "class A { n: int; } class B { a: A; } class C { b: B; }", {});
+
+    // Syntax mode parses the same grammar but applies no class constraints, so
+    // the programs the semantic mode rejects are accepted here.
+    expect_syntax("syntax: well-formed program", "class A { x: int; } class B { y: A; }", true);
+    expect_syntax("syntax: forward reference is accepted", "class A { b: B; } class B {}", true);
+    expect_syntax("syntax: duplicate class is accepted", "class A {} class A {}", true);
+    expect_syntax("syntax: self reference is accepted", "class Node { next: Node; }", true);
+    expect_syntax("syntax: missing type is rejected", "class A { x: ; }", false);
+    expect_syntax("syntax: unclosed class is rejected", "class A { x: int;", false);
 
     vera_checker checker;
     checker.feed("class Foo {} class Foo");

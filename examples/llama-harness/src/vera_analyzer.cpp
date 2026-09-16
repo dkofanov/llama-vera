@@ -1,13 +1,13 @@
 #include "vera_analyzer.h"
 
-// parser3-backed replacement for the previous hand-written lexer/parser/checker.
-// The whole parse and the semantic constraints (duplicate class/field names,
-// duplicate names in the module scope, and type references that must resolve to
-// a previously declared class) are implemented by the generated full_sem
-// grammar and its ClassSemantics bindings. The public API is unchanged.
+// parser3-backed analyzer.  In syntax mode the parse is the generated full
+// grammar; in semantics mode it is the full_sem grammar with its ClassSemantics
+// bindings (duplicate class/field names and type references that must resolve to
+// a previously declared class).  The public API is unchanged.
 
 #include "parser3/core/context.h"
 #include "parser3/core/context_view.h"
+#include "parser3/examples/full_grammar.h"
 #include "parser3/examples/full_sem_grammar.h"
 
 #include <cstddef>
@@ -17,28 +17,39 @@
 #include <vector>
 
 using namespace vera::parser3;
-using vera::parser3::full_sem::Root;
 
 namespace {
 constexpr std::size_t kStackSlots = 1 << 16;
 }
 
 struct vera_checker::impl {
+    grammar_mode mode;
     Context ctx;
     std::vector<diagnostic> diags;
     std::size_t piece_index = 0;
     bool failed = false;
 
-    impl() : ctx(kStackSlots, std::in_place_type<Root>, std::make_unique<ClassSemantics>()) {}
+    explicit impl(grammar_mode m) : mode(m), ctx(make_context(m)) {}
+
+    static Context make_context(grammar_mode m) {
+        if (m == grammar_mode::syntax) {
+            return Context(kStackSlots, std::in_place_type<full::Root>);
+        }
+        return Context(kStackSlots, std::in_place_type<full_sem::Root>, std::make_unique<ClassSemantics>());
+    }
 
     impl(const impl &other)
-        : ctx(other.ctx.DeepCopy()), diags(other.diags), piece_index(other.piece_index), failed(other.failed) {}
+        : mode(other.mode), ctx(other.ctx.DeepCopy()), diags(other.diags), piece_index(other.piece_index),
+          failed(other.failed) {}
 
-    // Record the current violation (name/scope from the semantics) and stop.
+    // Mark the current input as rejected.  Only the semantic mode records a
+    // diagnostic; syntax mode has nothing to report.
     void record(std::size_t index) {
-        const ClassSemantics *state = ctx.stack.SemanticsAs<ClassSemantics>();
-        diags.push_back(
-            {index, state ? state->violated_name() : std::string{}, state ? state->violated_scope() : std::string{}});
+        if (mode == grammar_mode::semantics) {
+            const ClassSemantics *state = ctx.stack.SemanticsAs<ClassSemantics>();
+            diags.push_back(
+                {index, state ? state->violated_name() : std::string{}, state ? state->violated_scope() : std::string{}});
+        }
         failed = true;
     }
 
@@ -61,15 +72,16 @@ struct vera_checker::impl {
         }
         ctx.chars.Finish();
         ContextView view(ctx);
-        const bool ok =
-            ctx.stack.Head() != nullptr && ctx.stack.Head()->Feed(view) && ctx.stack.Head() == nullptr;
+        const bool ok = ctx.stack.Head() != nullptr && ctx.stack.Head()->Feed(view) && ctx.stack.Head() == nullptr;
         if (!ok) {
             record(piece_index);
         }
     }
 };
 
-vera_checker::vera_checker() : p_(new impl()) {}
+vera_checker::vera_checker() : vera_checker(grammar_mode::semantics) {}
+
+vera_checker::vera_checker(grammar_mode mode) : p_(new impl(mode)) {}
 
 vera_checker::~vera_checker() = default;
 
@@ -119,12 +131,20 @@ const std::vector<diagnostic> &vera_checker::diagnostics() const {
     return p_->diags;
 }
 
+bool vera_checker::failed() const {
+    return p_->failed;
+}
+
+grammar_mode vera_checker::mode() const {
+    return p_->mode;
+}
+
 vera_checker vera_checker::clone() const {
     return vera_checker(*this);
 }
 
 void vera_checker::reset() {
-    p_.reset(new impl());
+    p_.reset(new impl(p_->mode));
 }
 
 std::vector<diagnostic> vera_analyze(const std::string &text) {

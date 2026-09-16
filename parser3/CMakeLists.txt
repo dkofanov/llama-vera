@@ -77,3 +77,14 @@ else()
         COMMAND ${CMAKE_COMMAND} -E false
         VERBATIM)
 endif()
+
+# Development-only: rewrite the committed grammar headers from grammars/*.grammar.
+# Never part of the default build, so consumers do not need Python.
+find_program(PARSER3_BASH bash)
+if(PARSER3_BASH)
+    add_custom_target(generate-grammars
+        COMMAND ${PARSER3_BASH} ${CMAKE_CURRENT_SOURCE_DIR}/tools/generate_grammars.sh
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        COMMENT "Regenerating parser3 grammar headers"
+        VERBATIM)
+endif()

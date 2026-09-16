@@ -8,7 +8,7 @@ if(DEFINED LLAMA_LIB_DIR)
 endif()
 
 add_library(vera-semantic
-    src/semantic_sampler.cpp
+    src/parser3_sampler.cpp
     src/vera_analyzer.cpp
 )
 target_include_directories(vera-semantic PUBLIC src)

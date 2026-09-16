@@ -17,7 +17,9 @@ rewind to the nearest checkpoint. Nothing is interpreted at runtime.
 **Grammar description.** That C++ type is generated at compile time by
 `tools/grammar_gen.py` from a local element DSL; sugar (`|`, `*`, `+`, `?`,
 literals, character classes, `ref`) is a documented desugaring. Rules are emitted
-in file order; recursion is spelled out as `struct` + `ref(...)`.
+in file order; recursion is spelled out as `struct` + `ref(...)`. The generated
+headers are committed; `tools/generate_grammars.sh` rewrites them and
+`--check` detects drift from the `.grammar` sources.
 
 **Semantics mechanism.** Semantics are an extension of the same description, not
 a second pass. A `@`-marked element is an ordinary grammar element:
