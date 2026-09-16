@@ -58,15 +58,35 @@ whole sweep and rewinds.
 
 | rejected request (prompt) | parser3 syntax (`--no-sem`) | parser3 + class semantics (default) | llama.cpp GBNF (`--gbnf`) |
 |---|---|---|---|
-| duplicate field (`a class with two fields named value`) | 23.9 | 39.8 | 28.4 |
-| forward reference (`a class that references a class declared later`) | 23.2 | 35.9 | 31.2 |
-| undefined return type (`a function returning an undefined type`) | 67.1 | 76.3 | 129.8 |
+| duplicate field (`a class with two fields named value`) | 24.0 | 39.5 | 29.3 |
+| forward reference (`a class that references a class declared later`) | 21.9 | 35.8 | 28.7 |
+| undefined return type (`a function returning an undefined type`) | 67.2 | 76.1 | 130.3 |
 
 milliseconds per token for the grammar step, 40 tokens per prompt, measured over
 these grammars and this engine with an instrumented two-grammar run (the driver
 itself prints only the generated text). Each run is truncated at the `-n 40` cap
 rather than ending on EOG: an unsatisfiable request gives the model no accepting
 place to stop, so the result is a broken, unclosed prefix.
+
+## Benchmarks
+
+Release (`-O2 -DNDEBUG`), i7-13700, g++ 11.4, Ubuntu 22.04; machine-specific.
+
+`llama-vera-full-bench 300 40 64` — full grammar, 43280 bytes, 64-byte chunks:
+
+```
+134.06 ns/byte   7.5 MB/s
+```
+
+`llama-vera-fork-bench 50 10 64` — 50 units, 7130 bytes, 64 bytes/ptoken:
+
+| forks | ns/byte | MB/s | overhead |
+|---|---|---|---|
+| 1 | 136.4 | 7.3 | 1.00x |
+| 2 | 291.9 | 3.4 | 2.14x |
+| 3 | 450.7 | 2.2 | 3.30x |
+
+fork copy of a half-parsed context: 0.08 µs/fork.
 
 parser3 is ~1.2–1.9x faster than GBNF. The class semantics adds ~1.1–1.7x in the
 sweep (~3.3x on the accepted-path feed, where no vocab walk amortizes it), so

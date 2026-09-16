@@ -31,3 +31,21 @@ for `@name(begin,args)…@name(end,args)`), and each invokes a
 backtracks like a terminal. The author's `SemanticState` lives on the `Context`
 (cloned on `Fork`, adopted on `Commit`) and is rewound by the grammar's own
 checkpoints — a discarded branch has no semantic effect.
+
+## Reference performance
+
+Release (`-O2 -DNDEBUG`), i7-13700, g++ 11.4, Ubuntu 22.04; machine-specific.
+`parser3-bench 20000 1234` on its synthetic grammar (64 units, 704 bytes):
+
+| chunking | feed ns/B | feed MB/s | total ns/B |
+|---|---|---|---|
+| random 1-5 B tokens | 6.2 | 161.7 | 6.2 |
+| bytes (1) | 9.5 | 105.1 | 9.6 |
+| bytes (4) | 5.0 | 199.6 | 5.1 |
+
+`feed` is the feed loop; `total` additionally includes constructing the
+`Context` for each iteration. Build
+with `cmake -S parser3 -B build -DCMAKE_BUILD_TYPE=Release`, then run
+`build/benchmarks/parser3-bench`, or `run-benchmarks` for the Debug/Release
+matrix. Grammar-level and fork benchmarks live with the harness —
+see `examples/llama-vera/ARCHITECTURE.md`.
