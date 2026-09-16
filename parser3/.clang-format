@@ -1,0 +1,10 @@
+BasedOnStyle: LLVM
+IndentWidth: 4
+ContinuationIndentWidth: 4
+ColumnLimit: 120
+BreakBeforeBraces: Attach
+PointerAlignment: Right
+ReferenceAlignment: Right
+AllowShortFunctionsOnASingleLine: Empty
+AlwaysBreakTemplateDeclarations: Yes
+SortIncludes: CaseSensitive

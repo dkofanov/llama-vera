@@ -1,0 +1,14 @@
+# Demonstrates inline @notation frames: an identifier is accumulated one
+# character at a time and rejected as soon as the prefix can no longer be
+# completed to one of the allowed names.
+#
+#   @begin  - reset the accumulator
+#   @char   - append the just-consumed byte, check the prefix
+#   @end    - require the accumulated name to be a complete allowed name
+
+alias ws    = [ \t\r\n]*
+alias start = [a-zA-Z_]
+alias cont  = [a-zA-Z0-9_]
+
+alias name  = @begin start @char (cont @char)* @end
+alias root  = name ws EOF

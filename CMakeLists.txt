@@ -1,48 +1,29 @@
 cmake_minimum_required(VERSION 3.14)
-project(llama-vera CXX)
+project(llama-vera LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(llama CONFIG REQUIRED)
-
-if(DEFINED LLAMA_LIB_DIR)
-    set(CMAKE_BUILD_RPATH "${LLAMA_LIB_DIR}")
-endif()
-
-set(PARSER3_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../llama-cli/src/parser3/include"
-    CACHE PATH "parser3 include directory")
-
-add_library(vera-semantic
-    src/semantic_sampler.cpp
-    src/vera_analyzer.cpp
-)
-target_include_directories(vera-semantic PUBLIC src)
-target_include_directories(vera-semantic PRIVATE ${PARSER3_INCLUDE_DIR})
-target_link_libraries(vera-semantic PUBLIC llama)
-
-add_executable(llama-vera src/main.cpp)
-target_link_libraries(llama-vera PRIVATE vera-semantic)
-if(UNIX AND NOT APPLE AND DEFINED LLAMA_LIB_DIR)
-    target_link_options(llama-vera PRIVATE "-Wl,--disable-new-dtags")
-endif()
-
 include(CTest)
-if(BUILD_TESTING)
-    add_executable(vera-analyzer-test
-        tests/test_vera_analyzer.cpp
-        src/vera_analyzer.cpp
-    )
-    target_include_directories(vera-analyzer-test PRIVATE src ${PARSER3_INCLUDE_DIR})
-    add_test(NAME vera-analyzer COMMAND vera-analyzer-test)
 
-    set(LLAMA_VERA_TEST_MODEL "" CACHE FILEPATH "GGUF model used by semantic sampler integration tests")
-    if(LLAMA_VERA_TEST_MODEL)
-        add_executable(semantic-filter-test tests/test_semantic_filter.cpp)
-        target_link_libraries(semantic-filter-test PRIVATE vera-semantic)
-        if(UNIX AND NOT APPLE AND DEFINED LLAMA_LIB_DIR)
-            target_link_options(semantic-filter-test PRIVATE "-Wl,--disable-new-dtags")
-        endif()
-        add_test(NAME semantic-filter COMMAND semantic-filter-test ${LLAMA_VERA_TEST_MODEL})
+# parser3 is the library this repository publishes; it builds standalone.  In
+# this top-level build its tests and benchmarks are on by default; a project
+# that embeds parser3 via add_subdirectory keeps them off.
+option(PARSER3_BUILD_TESTS "Build parser3 tests" ON)
+option(PARSER3_BUILD_BENCHMARKS "Build parser3 benchmarks" ON)
+add_subdirectory(parser3)
+
+# The llama harness is an example consumer of parser3.  It needs llama.cpp, so
+# it is skipped (with a warning) when llama is not found, leaving parser3 usable
+# on its own.
+option(LLAMA_VERA_BUILD_EXAMPLE "Build the llama harness example" ON)
+if(LLAMA_VERA_BUILD_EXAMPLE)
+    find_package(llama CONFIG QUIET)
+    if(llama_FOUND)
+        add_subdirectory(examples/llama-harness)
+    else()
+        message(WARNING
+            "llama.cpp was not found (find_package(llama CONFIG)); skipping examples/llama-harness. "
+            "Point CMAKE_PREFIX_PATH at a llama.cpp install, or configure with -DLLAMA_VERA_BUILD_EXAMPLE=OFF.")
     endif()
 endif()

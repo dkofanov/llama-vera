@@ -1,0 +1,106 @@
+# The full Vera grammar, in the parser3 element DSL.
+#
+# Rules are emitted in file order, so this file lists every alias before the
+# rules that use it, then the recursive structs.  Recursive rules are written
+# `struct` and referenced with `ref(...)`; identifier-shaped keywords use
+# kw("...") so they carry a name boundary.
+
+# --- whitespace / comments -------------------------------------------------
+
+alias line-comment           = "//" [^\r\n]* ("\r\n" | "\n" | "\r")?
+alias whitespace             = ([ \t\r\n] | line-comment)
+alias ws                     = whitespace*
+alias gap                    = whitespace+
+
+# --- identifiers / literals ------------------------------------------------
+
+alias identifier-start       = [a-zA-Z_]
+alias identifier-continue    = [a-zA-Z_$0-9]
+alias identifier             = identifier-start identifier-continue* ws
+
+alias escape-sequence        = ['"nrt0\\]
+alias double-quote-character = [^"\\\r\n] | "\\" escape-sequence
+alias string-literal         = "\"" double-quote-character* "\"" ws
+alias path                   = string-literal
+
+alias decimal-literal        = [0-9]+
+alias fractional-part        = "." [0-9]+
+alias exponent-part          = [eE] [+-]? [0-9]+
+alias numeric-suffix         = fractional-part exponent-part? | exponent-part
+alias numeric-literal        = decimal-literal numeric-suffix? ws
+alias boolean-literal        = (kw("false") | kw("true")) ws
+alias literal                = boolean-literal | numeric-literal | string-literal | kw("null") ws
+
+alias basic-type             = (kw("int") | kw("number") | kw("boolean") | kw("string") | kw("null")) ws
+alias qualified-name         = identifier ("." ws identifier)?
+
+# --- declarations ----------------------------------------------------------
+
+alias annotation             = "@" identifier
+alias import                 = kw("import") ws "*" ws kw("as") gap identifier kw("from") gap path
+alias field                  = identifier ":" ws ref(type) ";" ws
+alias function-declaration   = (kw("async") gap)? kw("function") gap identifier ref(signature) ref(block)
+alias class-declaration      = annotation* kw("class") gap identifier "{" ws field* "}" ws
+alias declaration            = (kw("export") gap)? (function-declaration | class-declaration)
+alias module                 = import* declaration*
+alias root                   = ws module EOF
+
+alias parameter              = identifier ":" ws ref(type)
+alias parameter-list         = parameter ("," ws parameter)*
+alias initializer            = "=" ws ref(expression)
+alias variable-declaration   = identifier ":" ws ref(type) initializer ";" ws
+alias local-declaration      = kw("let") gap variable-declaration
+
+# --- types -----------------------------------------------------------------
+
+alias parenthesized-type     = "(" ws ref(type) ("|" ws kw("null") ws)? ")" ws
+alias async-function-type    = kw("async") gap kw("function") ws ref(signature)
+alias non-async-function-type = kw("function") ws ref(signature)
+alias function-type          = async-function-type | non-async-function-type
+
+# --- statements ------------------------------------------------------------
+
+alias while-statement        = kw("while") gap "(" ws ref(expression) ")" ws ref(block)
+alias for-of-statement       = kw("for") gap "(" ws kw("let") gap identifier ":" ws ref(type) kw("of") gap ref(expression) ")" ws ref(block)
+alias break-statement        = kw("break") ws ";" ws
+alias continue-statement     = kw("continue") ws ";" ws
+alias return-statement       = kw("return") gap ref(expression) ";" ws
+alias try-statement          = kw("try") gap ref(block) ws kw("catch") gap "(" ws identifier ws ")" ws ref(block)
+alias simple-statement       = ref(expression) ("=" ws ref(expression))? ";" ws
+alias statement              = ref(if-statement) | while-statement | for-of-statement | break-statement | continue-statement | return-statement | try-statement | simple-statement
+
+# --- expressions -----------------------------------------------------------
+
+alias multiplicative-op      = ("*" | "/" | "%") ws
+alias multiplicative-expression = ref(unary-expression) (multiplicative-op ref(unary-expression))*
+alias additive-op            = ("+" | "-") ws
+alias additive-expression    = multiplicative-expression (additive-op multiplicative-expression)*
+alias relational-op          = ("<=" | ">=" | "<" | ">") ws
+alias relational-expression  = additive-expression (relational-op additive-expression)?
+alias equality-op            = ("===" | "!==") ws
+alias equality-expression    = relational-expression (equality-op relational-expression)?
+alias logical-and-expression = equality-expression ("&&" ws equality-expression)*
+alias logical-or-expression  = logical-and-expression ("||" ws logical-and-expression)*
+
+alias expression-list        = ref(expression) ("," ws ref(expression))*
+alias array-literal          = "[" ws expression-list? "]" ws
+alias property-value         = identifier ":" ws ref(expression)
+alias property-value-list    = property-value ("," ws property-value)*
+alias object-literal         = "{" ws property-value-list? "}" ws
+alias lambda-expression      = (kw("async") gap)? kw("function") ws ref(signature) ref(block)
+alias operand                = literal | array-literal | object-literal | "(" ws ref(expression) ")" ws | lambda-expression | identifier
+alias arguments              = "(" ws expression-list? ")" ws
+alias index                  = "[" ws ref(expression) "]" ws
+alias selector               = "." ws identifier
+alias ensure-not-null        = "!" ws
+alias primary-expression     = operand (arguments | index | selector | ensure-not-null)*
+alias unary-op               = ("-" ws | "!" ws | kw("await") gap)
+
+# --- recursive rules -------------------------------------------------------
+
+struct type                  = (function-type | parenthesized-type | qualified-name | basic-type) ("[" ws "]" ws)*
+struct signature             = "(" ws parameter-list? ")" ws ":" ws ref(type)
+struct block                 = "{" ws (local-declaration | statement)* "}" ws
+struct expression            = logical-or-expression
+struct if-statement          = kw("if") gap "(" ws ref(expression) ")" ws ref(block) (kw("else") ws (ref(if-statement) | ref(block)))?
+struct unary-expression      = unary-op ref(unary-expression) | primary-expression

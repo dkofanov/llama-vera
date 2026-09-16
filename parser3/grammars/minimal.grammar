@@ -1,0 +1,20 @@
+# The minimal Vera grammar, in the parser3 element DSL.
+
+alias whitespace             = [ \t\r\n]
+alias ws                     = whitespace*
+alias gap                    = whitespace+
+
+alias identifier-start       = [a-zA-Z_]
+alias identifier-continue    = [a-zA-Z_$0-9]
+alias identifier             = identifier-start identifier-continue*
+
+alias basic-type             = "int" | "number" | "boolean" | "string"
+
+alias block                  = "{" ws "}" ws
+alias signature              = "(" ws ")" ws ":" ws basic-type ws
+alias function-declaration   = "function" gap identifier ws signature block
+alias class-declaration      = "class" gap identifier ws "{" ws "}" ws
+alias declaration            = function-declaration | class-declaration
+alias module                 = declaration*
+
+alias root                   = ws module EOF
