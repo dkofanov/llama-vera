@@ -1,8 +1,13 @@
+// Feeds a two-byte token across separate Feed calls: the grammar is ambiguous
+// until the second byte ('<' then '=' or '>'), so this checks that a partial
+// parse resumes when more input arrives.
+
+#include "parser3/core/context.h"
 #include "parser3/core/context_view.h"
 #include "parser3/core/grammar_element.h"
-#include "parser3/ltoken/ltoken_stream.h"
 
 #include <cstdio>
+#include <utility>
 
 using namespace vera::parser3;
 
@@ -15,16 +20,16 @@ using Root = FirstMatch<Alt0, Alt1>;
 } // namespace
 
 int main() {
-    LTokenStream<Root> stream(64, 64);
-    ContextView view = stream.View();
+    Context ctx(64, std::in_place_type<Root>);
+    ContextView view(ctx);
 
-    view.chars.Append("<", 1);
-    if (!view.stack.Head()->Feed(view)) {
+    ctx.chars.Append("<", 1);
+    if (!ctx.stack.Head()->Feed(view)) {
         std::printf("FAIL  stream: pending on '<'\n");
         return 1;
     }
-    view.chars.Append(">", 1);
-    if (!view.stack.Head()->Feed(view)) {
+    ctx.chars.Append(">", 1);
+    if (!ctx.stack.Head()->Feed(view)) {
         std::printf("FAIL  stream: accepts '<>'\n");
         return 1;
     }

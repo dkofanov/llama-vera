@@ -1,7 +1,7 @@
-// Throughput for the full Vera grammar (examples/full_grammar.h) on a
-// synthetic program, used by the flamegraph tooling.
+// Throughput for the full Vera grammar (parser3-generated/full_grammar.h) on a
+// synthetic program.
 //
-// Usage: parser3-full-bench [units] [iterations] [chunk]
+// Usage: llama-vera-full-bench [units] [iterations] [chunk]
 //   units:      number of function+class pairs (default 300)
 //   iterations: timed repetitions of the whole feed (default 20)
 //   chunk:      bytes per Feed call (default 64)

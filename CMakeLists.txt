@@ -20,10 +20,10 @@ option(LLAMA_VERA_BUILD_EXAMPLE "Build the llama harness example" ON)
 if(LLAMA_VERA_BUILD_EXAMPLE)
     find_package(llama CONFIG QUIET)
     if(llama_FOUND)
-        add_subdirectory(examples/llama-harness)
+        add_subdirectory(examples/llama-vera)
     else()
         message(WARNING
-            "llama.cpp was not found (find_package(llama CONFIG)); skipping examples/llama-harness. "
+            "llama.cpp was not found (find_package(llama CONFIG)); skipping examples/llama-vera. "
             "Point CMAKE_PREFIX_PATH at a llama.cpp install, or configure with -DLLAMA_VERA_BUILD_EXAMPLE=OFF.")
     endif()
 endif()

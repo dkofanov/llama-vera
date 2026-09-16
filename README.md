@@ -1,12 +1,12 @@
 # llama-vera
 
 This repository publishes **parser3**, a header-only, incremental, byte-level PEG
-engine for constraining token sampling, and ships **`examples/llama-harness`**, an
+engine for constraining token sampling, and ships **`examples/llama-vera`**, an
 example that uses it to drive llama.cpp completions.
 
 ```
-parser3/                 the library
-examples/llama-harness/  example consumer
+parser3/                the library
+examples/llama-vera/    example consumer
 ```
 
 ## parser3
@@ -28,7 +28,7 @@ Then in a source file:
 
 See `parser3/ARCHITECTURE.md` for the engine, the grammar DSL, and the semantic
 hooks. The VERA `full` / `full_sem` grammars live with their consumer in
-`examples/llama-harness/grammars`.
+`examples/llama-vera/grammars`.
 
 Build and test the library by itself:
 
@@ -44,11 +44,13 @@ Install it (so external projects can `find_package(parser3)`):
 cmake --install build --prefix /some/prefix
 ```
 
-## Example harness (`examples/llama-harness`)
+## Example harness (`examples/llama-vera`)
 
-A direct llama.cpp completion driver with optional parser3 semantic filtering. It
-needs a compatible installed llama.cpp CMake package — without one, the top-level
-configure skips the example and still builds parser3.
+A direct llama.cpp completion driver constrained by parser3, over the VERA
+grammar it owns. It needs a compatible installed llama.cpp CMake package —
+without one, the top-level configure skips the example and still builds parser3.
+See `examples/llama-vera/ARCHITECTURE.md` for the constraint modes and the
+generation measurements.
 
 ```sh
 cmake -S . -B build -DCMAKE_PREFIX_PATH=/path/to/llama.cpp/install
@@ -67,7 +69,7 @@ cmake -S . -B build -DCMAKE_PREFIX_PATH=../llama-cli/third_party/llama
 Usage:
 
 ```sh
-./build/examples/llama-harness/llama-vera -m model.gguf -p 'class Point { x: int; } class ' -n 64
+./build/examples/llama-vera/llama-vera -m model.gguf -p 'class Point { x: int; } class ' -n 64
 ```
 
 Generation is constrained by default with the parser3 `full_sem` grammar plus its

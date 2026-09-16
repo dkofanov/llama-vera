@@ -2,7 +2,7 @@
 // N forks (all fed the same bytes) and one is committed, versus parsing the same
 // document in a single context.
 //
-// Usage: parser3-fork-bench [units] [iterations] [chunk]
+// Usage: llama-vera-fork-bench [units] [iterations] [chunk]
 //   units:      function+class pairs (default 50)
 //   iterations: timed repetitions per mode (default 10)
 //   chunk:      bytes per ptoken (default 64)
