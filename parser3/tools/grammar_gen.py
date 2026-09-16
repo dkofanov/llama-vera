@@ -13,6 +13,10 @@ An item is either an include or a rule::
     alias  ws = ns*
     struct type = (ref(function-type) | basic-type) (exact('[') ws exact(']') ws)* @sem(Type)
 
+`%include` reads a file relative to the grammar and inlines its text (minus a
+leading ``#pragma once``) at global scope, so the emitted header is
+self-contained and the bindings have no other consumer.
+
 `alias` becomes ``using Name = <expr>;``; `struct` is forward declared and
 becomes ``struct Name : <expr> {};``.  A rule is emitted where it is written, so
 an alias must appear after the aliases it names; a `struct` is forward declared
@@ -74,6 +78,7 @@ space (``@x(y)``) so ``@x (y)*`` means ``@x`` applied to the group ``(y)*``.
 from __future__ import annotations
 
 import argparse
+import os
 import re
 import sys
 from dataclasses import dataclass, field
@@ -584,6 +589,21 @@ def cpp_char(ch: str) -> str:
     return f"'\\x{code:02x}'"
 
 
+def inline_include(path: str, source: str) -> str:
+    """Read a %include target and return its text, minus a leading #pragma once.
+
+    The path is resolved relative to the grammar file, so a grammar and its
+    bindings can sit side by side.
+    """
+    resolved = os.path.join(os.path.dirname(source), path)
+    with open(resolved, "r", encoding="utf-8") as handle:
+        text = handle.read()
+    text = text.lstrip("\n")
+    if text.startswith("#pragma once"):
+        text = text[len("#pragma once") :].lstrip("\n")
+    return text.rstrip("\n")
+
+
 class Emitter:
     def __init__(self, items: List[object], rules: List[Rule]):
         self.items = items
@@ -765,14 +785,15 @@ class Emitter:
             lines.append("} // namespace nota")
             lines.append("")
 
-        # Author-owned binding headers are included at global scope so their
-        # SignalAction specializations are legal.
+        # Author-owned bindings are inlined at global scope so their SignalAction
+        # specializations are legal.  Inlining keeps the generated header
+        # self-contained and leaves the bindings with no other consumer.
         if includes:
             lines.append(f"}} // namespace {namespace}")
             lines.append("")
             for include in includes:
-                lines.append(f'#include "{include.path}"')
-            lines.append("")
+                lines.append(inline_include(include.path, source))
+                lines.append("")
             lines.append(f"namespace {namespace} {{")
             lines.append("")
 

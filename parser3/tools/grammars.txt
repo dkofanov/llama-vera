@@ -1,5 +1,0 @@
-# Regeneration manifest for tools/generate_grammars.sh.
-# One entry per line: <source .grammar> <generated header> <C++ namespace>
-grammars/full.grammar      include/parser3/examples/full_grammar.h     vera::parser3::full
-grammars/full_sem.grammar  include/parser3/examples/full_sem_grammar.h vera::parser3::full_sem
-tests/signal.grammar       tests/signal_grammar.h                     vera::parser3::signal_demo

@@ -14,7 +14,7 @@
 # `struct` and referenced with `ref(...)`; identifier-shaped keywords use
 # kw("...") so they carry a name boundary.
 
-%include "parser3/examples/full_semantics.h"
+%include "full_semantics.h"
 
 # --- whitespace / comments -------------------------------------------------
 

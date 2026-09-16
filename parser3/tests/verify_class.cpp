@@ -9,7 +9,7 @@
 
 #include "parser3/core/context.h"
 #include "parser3/core/context_view.h"
-#include "parser3/examples/full_sem_grammar.h"
+#include "parser3-generated/full_sem_grammar.h"
 
 #include <cstdio>
 #include <fstream>

@@ -7,10 +7,12 @@ target_compile_definitions(parser3-bench PRIVATE
 add_executable(parser3-full-bench parser3_full_bench.cpp)
 target_link_libraries(parser3-full-bench PRIVATE parser3)
 target_compile_definitions(parser3-full-bench PRIVATE PARSER3_BUILD_TYPE="$<CONFIG>")
+add_dependencies(parser3-full-bench parser3-generated)
 
 add_executable(parser3-fork-bench parser3_fork_bench.cpp)
 target_link_libraries(parser3-fork-bench PRIVATE parser3)
 target_compile_definitions(parser3-fork-bench PRIVATE PARSER3_BUILD_TYPE="$<CONFIG>")
+add_dependencies(parser3-fork-bench parser3-generated)
 
 add_custom_target(run-benchmarks
     COMMAND ${CMAKE_COMMAND} -E env

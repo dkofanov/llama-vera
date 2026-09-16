@@ -7,10 +7,17 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 
+# Grammar headers are build artifacts: they are generated from grammars/*.grammar
+# into the build tree under the parser3-generated/ include prefix and are never
+# installed.  The hand-written core headers below are the library.
+set(PARSER3_GENERATED_INCLUDE "${CMAKE_CURRENT_BINARY_DIR}/include")
+set(PARSER3_GENERATED_DIR "${PARSER3_GENERATED_INCLUDE}/parser3-generated")
+
 add_library(parser3 INTERFACE)
 add_library(parser3::parser3 ALIAS parser3)
 target_include_directories(parser3 INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<BUILD_INTERFACE:${PARSER3_GENERATED_INCLUDE}>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
 
 # When embedded with add_subdirectory the library builds on its own; tests and
@@ -34,6 +41,39 @@ if(PARSER3_BUILD_TESTS OR PARSER3_BUILD_BENCHMARKS)
     set(CMAKE_CXX_FLAGS_RELEASE "-O2 -DNDEBUG")
     add_compile_options($<$<CONFIG:Release>:-g> $<$<CONFIG:Release>:-fno-omit-frame-pointer>)
 endif()
+
+# Generate a grammar header into the build tree.  A grammar may %include
+# bindings that the generator inlines, so those are extra dependencies.
+function(parser3_generate_grammar source output namespace)
+    set(out "${PARSER3_GENERATED_DIR}/${output}")
+    set(deps "")
+    foreach(dep IN LISTS ARGN)
+        list(APPEND deps "${CMAKE_CURRENT_SOURCE_DIR}/${dep}")
+    endforeach()
+    add_custom_command(
+        OUTPUT "${out}"
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${PARSER3_GENERATED_DIR}"
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/grammar_gen.py"
+                "${source}" -n "${namespace}" -o "${out}"
+        DEPENDS
+            "${CMAKE_CURRENT_SOURCE_DIR}/${source}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tools/grammar_gen.py"
+            ${deps}
+        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+        COMMENT "Generating ${output}"
+        VERBATIM)
+    set(PARSER3_GENERATED_OUTPUTS "${PARSER3_GENERATED_OUTPUTS};${out}" PARENT_SCOPE)
+endfunction()
+
+set(PARSER3_GENERATED_OUTPUTS "")
+if(PARSER3_BUILD_TESTS OR PARSER3_BUILD_BENCHMARKS)
+    find_package(Python3 COMPONENTS Interpreter REQUIRED)
+    parser3_generate_grammar(grammars/full.grammar full_grammar.h vera::parser3::full)
+    parser3_generate_grammar(grammars/full_sem.grammar full_sem_grammar.h vera::parser3::full_sem
+        grammars/full_semantics.h)
+    parser3_generate_grammar(tests/signal.grammar signal_grammar.h vera::parser3::signal_demo)
+endif()
+add_custom_target(parser3-generated DEPENDS ${PARSER3_GENERATED_OUTPUTS})
 
 if(PARSER3_BUILD_TESTS)
     enable_testing()
@@ -75,16 +115,5 @@ else()
     add_custom_target(format
         COMMAND ${CMAKE_COMMAND} -E echo "clang-format was not found"
         COMMAND ${CMAKE_COMMAND} -E false
-        VERBATIM)
-endif()
-
-# Development-only: rewrite the committed grammar headers from grammars/*.grammar.
-# Never part of the default build, so consumers do not need Python.
-find_program(PARSER3_BASH bash)
-if(PARSER3_BASH)
-    add_custom_target(generate-grammars
-        COMMAND ${PARSER3_BASH} ${CMAKE_CURRENT_SOURCE_DIR}/tools/generate_grammars.sh
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-        COMMENT "Regenerating parser3 grammar headers"
         VERBATIM)
 endif()

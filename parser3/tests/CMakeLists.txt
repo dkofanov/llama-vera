@@ -12,16 +12,19 @@ add_test(NAME optional COMMAND parser3-test-optional)
 
 add_executable(parser3-test-context test_context.cpp)
 target_link_libraries(parser3-test-context PRIVATE parser3)
+add_dependencies(parser3-test-context parser3-generated)
 add_test(NAME context COMMAND parser3-test-context)
 
 add_executable(parser3-test-signal test_signal.cpp)
 target_link_libraries(parser3-test-signal PRIVATE parser3)
-target_include_directories(parser3-test-signal PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+add_dependencies(parser3-test-signal parser3-generated)
 add_test(NAME signal COMMAND parser3-test-signal)
 
 add_executable(parser3-test-class test_class.cpp)
 target_link_libraries(parser3-test-class PRIVATE parser3)
+add_dependencies(parser3-test-class parser3-generated)
 add_test(NAME class COMMAND parser3-test-class)
 
 add_executable(parser3-verify-class verify_class.cpp)
 target_link_libraries(parser3-verify-class PRIVATE parser3)
+add_dependencies(parser3-verify-class parser3-generated)

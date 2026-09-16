@@ -11,6 +11,7 @@ endif()
 add_library(parser3-vera src/parser3_vera.cpp)
 target_include_directories(parser3-vera PUBLIC src)
 target_link_libraries(parser3-vera PUBLIC parser3)
+add_dependencies(parser3-vera parser3-generated)
 
 # Adapter: the llama.cpp sampler that wraps the core.
 add_library(llama-vera-sampler src/llama_vera_sampler.cpp)
