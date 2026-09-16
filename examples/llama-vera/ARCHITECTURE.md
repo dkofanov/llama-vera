@@ -51,10 +51,12 @@ and then filtering. Same prompt and seed, `llama-vera -n 40`:
 
 ## Generation overhead
 
-Each generated token is constrained against the whole ~152k-token vocab, so the
-grammar step dominates the decode. The representative case is a request the
-constraints must *reject*: the sampler can never accept early, so it walks the
-whole sweep and rewinds.
+Each generated token is constrained against the whole vocabulary (~152k tokens
+for Qwen2.5-0.5B): the sampler tests every candidate piece against the current
+parser state — a `Fork` + `Feed` each, minus the pieces pruned by the first-byte
+mask — so one token is one sweep over the vocab. The representative case is a
+request the constraints must *reject*: the sampler can never accept early, so it
+walks the whole sweep and rewinds.
 
 | rejected request (prompt) | parser3 syntax (`--no-sem`) | parser3 + class semantics (default) | llama.cpp GBNF (`--gbnf`) |
 |---|---|---|---|
@@ -70,8 +72,13 @@ place to stop, so the result is a broken, unclosed prefix.
 
 parser3 is ~1.2–1.9x faster than GBNF. The class semantics adds ~1.1–1.7x in the
 sweep (~3.3x on the accepted-path feed, where no vocab walk amortizes it), so
-parser3+semantics vs GBNF is ~0.6–1.4x, request-dependent. All dwarf the
-~5 ms/token decode: the cost is the ~152k-candidate sweep, not matching speed.
+parser3+semantics vs GBNF is ~0.6–1.4x, request-dependent.
+
+The cost per token is set by the vocabulary size, not by parser3's matching
+throughput: ~152k candidate trials per token (10^6–10^7 ns) dwarf the
+~5 ms/token decode, and are many orders of magnitude above the 5–134 ns/byte
+that `parser3-bench` measures. A faster `Feed` barely moves this number; pruning
+the candidate set (first-byte mask, deeper tries) is what does.
 
 ## Benchmarks
 
